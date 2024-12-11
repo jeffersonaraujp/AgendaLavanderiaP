@@ -1,0 +1,511 @@
+<html><head><base href=""><style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .login-form, .admin-panel, .booking-form {
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 5px;
+    margin: 20px 0;
+  }
+  
+  input, select, button {
+    margin: 5px;
+    padding: 5px;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+  }
+  
+  th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  .error {
+    color: red;
+  }
+  
+  .success {
+    color: green;
+  }
+
+  button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: #45a049;
+  }
+
+  .available-slots {
+    margin-top: 20px;
+  }
+
+  .calendar {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+  }
+
+  .calendar th {
+    background-color: #f5f5f5;
+    padding: 10px;
+  }
+
+  .calendar td {
+    height: 100px;
+    vertical-align: top;
+    padding: 5px;
+  }
+
+  .calendar-slot {
+    font-size: 12px;
+    margin-bottom: 4px;
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+
+  .booked {
+    background-color: #ffebee;
+  }
+
+  .available {
+    background-color: #e8f5e9;
+    cursor: pointer;
+  }
+
+  .calendar-slot:hover {
+    opacity: 0.8;
+  }
+
+  .time-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #eee;
+  }
+</style></head><body>
+  <div id="loginPage">
+    <h2>Sistema de Agendamento da Lavanderia</h2>
+    <div class="login-form">
+      <h3>Login</h3>
+      <input type="text" id="buildingNumber" placeholder="Número do Prédio" required>
+      <input type="text" id="apartmentNumber" placeholder="Número do Apartamento" required>
+      <input type="password" id="password" placeholder="Senha" required>
+      <button onclick="login()">Entrar</button>
+      <p id="loginError" class="error"></p>
+    </div>
+  </div>
+
+  <div id="adminPanel" class="hidden">
+    <h2>Painel do Administrador</h2>
+    <div class="admin-panel">
+      <h3>Cadastrar Novo Morador</h3>
+      <input type="text" id="newName" placeholder="Nome">
+      <input type="text" id="newBuilding" placeholder="Prédio">
+      <input type="text" id="newApartment" placeholder="Apartamento">
+      <input type="text" id="newPhone" placeholder="Celular">
+      <input type="password" id="newPassword" placeholder="Senha">
+      <button onclick="registerResident()">Cadastrar</button>
+      
+      <h3>Moradores Cadastrados</h3>
+      <table id="residentsTable">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Prédio</th>
+            <th>Apartamento</th>
+            <th>Celular</th>
+            <th>Senha</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div id="bookingPage" class="hidden">
+    <h2>Agendamento de Horários</h2>
+    <div class="booking-form">
+      <h3>Seus Agendamentos</h3>
+      <table id="userBookings">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Horário</th>
+            <th>Máquina</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      
+      <h3>Novo Agendamento</h3>
+      <input type="date" id="bookingDate">
+      <select id="bookingTime">
+        <option value="00:00">00:00 - 08:00</option>
+        <option value="08:00">08:00 - 16:00</option>
+        <option value="16:00">16:00 - 00:00</option>
+      </select>
+      <select id="machineNumber">
+        <option value="1">Máquina 1</option>
+        <option value="2">Máquina 2</option>
+      </select>
+      <button onclick="makeBooking()">Agendar</button>
+      <p id="bookingError" class="error"></p>
+
+      <div class="available-slots">
+        <h3>Calendário de Agendamentos</h3>
+        <table id="bookingCalendar" class="calendar">
+          <thead>
+            <tr>
+              <th>Domingo</th>
+              <th>Segunda</th>
+              <th>Terça</th>
+              <th>Quarta</th>
+              <th>Quinta</th>
+              <th>Sexta</th>
+              <th>Sábado</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      
+      <button onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+<script>
+let users = [{
+  building: "00",
+  apartment: "00",
+  password: "adm",
+  isAdmin: true,
+  name: "Administrador",
+  phone: ""
+}];
+
+let bookings = [];
+let currentUser = null;
+
+function login() {
+  const building = document.getElementById("buildingNumber").value;
+  const apartment = document.getElementById("apartmentNumber").value;
+  const password = document.getElementById("password").value;
+  
+  const user = users.find(u => 
+    u.building === building && 
+    u.apartment === apartment && 
+    u.password === password
+  );
+  
+  if (user) {
+    currentUser = user;
+    if (user.isAdmin) {
+      showAdminPanel();
+    } else {
+      confirmAndShowBookingPage();
+    }
+    document.getElementById("loginError").textContent = "";
+  } else {
+    document.getElementById("loginError").textContent = "Credenciais inválidas!";
+  }
+}
+
+function confirmAndShowBookingPage() {
+  if (confirm("CASO NÃO DESOCUPE A MÁQUINA E O VARAL no final do seu horário agendado, o próximo morador PODERÁ RETIRAR AS ROUPAS DA MÁQUINA OU DO VARAL")) {
+    document.getElementById("loginPage").classList.add("hidden");
+    document.getElementById("bookingPage").classList.remove("hidden");
+    updateBookingsTable();
+    updateAvailableSlots();
+  }
+}
+
+function showAdminPanel() {
+  document.getElementById("loginPage").classList.add("hidden");
+  document.getElementById("adminPanel").classList.remove("hidden");
+  updateResidentsTable();
+}
+
+function registerResident() {
+  const name = document.getElementById("newName").value;
+  const building = document.getElementById("newBuilding").value;
+  const apartment = document.getElementById("newApartment").value;
+  const phone = document.getElementById("newPhone").value;
+  const password = document.getElementById("newPassword").value;
+  
+  if (!name || !building || !apartment || !phone || !password) {
+    alert("Por favor, preencha todos os campos!");
+    return;
+  }
+
+  if (parseInt(building) < 1 || parseInt(building) > 10) {
+    alert("O número do prédio deve estar entre 1 e 10!");
+    return;
+  }
+  
+  const existingUser = users.find(u => 
+    u.building === building && 
+    u.apartment === apartment
+  );
+
+  if (existingUser) {
+    alert("Já existe um morador cadastrado neste apartamento!");
+    return;
+  }
+
+  users.push({
+    name,
+    building,
+    apartment,
+    phone,
+    password,
+    isAdmin: false
+  });
+  updateResidentsTable();
+  clearRegistrationForm();
+}
+
+function updateResidentsTable() {
+  const tbody = document.querySelector("#residentsTable tbody");
+  tbody.innerHTML = "";
+  
+  users.filter(u => !u.isAdmin).forEach(user => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${user.name}</td>
+      <td>${user.building}</td>
+      <td>${user.apartment}</td>
+      <td>${user.phone}</td>
+      <td>${user.password}</td>
+      <td>
+        <button onclick="deleteUser('${user.building}', '${user.apartment}')">Deletar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateAvailableSlots() {
+  const tbody = document.querySelector("#bookingCalendar tbody");
+  tbody.innerHTML = "";
+  
+  const today = new Date();
+  const weekFromNow = new Date();
+  weekFromNow.setDate(weekFromNow.getDate() + 7);
+  
+  let currentWeek = [];
+  let firstDay = new Date(today);
+  firstDay.setHours(0,0,0,0);
+  firstDay.setDate(firstDay.getDate() - firstDay.getDay());
+  
+  for (let i = 0; i < 7; i++) {
+    const currentDate = new Date(firstDay);
+    currentDate.setDate(firstDay.getDate() + i);
+    currentWeek.push(currentDate);
+  }
+  
+  const tr = document.createElement("tr");
+  
+  currentWeek.forEach(date => {
+    const td = document.createElement("td");
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const dateHeader = document.createElement("div");
+    dateHeader.className = "time-header";
+    dateHeader.textContent = date.getDate();
+    td.appendChild(dateHeader);
+    
+    const timeSlots = ["00:00", "08:00", "16:00"];
+    const machines = ["1", "2"];
+    
+    timeSlots.forEach(time => {
+      machines.forEach(machine => {
+        const slot = document.createElement("div");
+        const booking = bookings.find(b => 
+          b.date === dateStr && 
+          b.time === time && 
+          b.building === currentUser.building &&
+          b.machine === machine
+        );
+        
+        if (booking) {
+          slot.className = "calendar-slot booked";
+          slot.textContent = `${time} - Máq ${machine}: ${booking.apartment}`;
+        } else {
+          const slotDate = new Date(dateStr + "T" + time);
+          if (slotDate >= today && slotDate <= weekFromNow) {
+            slot.className = "calendar-slot available";
+            slot.textContent = `${time} - Máq ${machine}: Livre`;
+            slot.onclick = () => {
+              document.getElementById("bookingDate").value = dateStr;
+              document.getElementById("bookingTime").value = time;
+              document.getElementById("machineNumber").value = machine;
+            };
+          }
+        }
+        td.appendChild(slot);
+      });
+    });
+    
+    tr.appendChild(td);
+  });
+  
+  tbody.appendChild(tr);
+}
+
+function deleteUser(building, apartment) {
+  if (confirm("Tem certeza que deseja deletar este usuário?")) {
+    users = users.filter(u => 
+      !(u.building === building && u.apartment === apartment)
+    );
+    bookings = bookings.filter(b =>
+      !(b.building === building && b.apartment === apartment)
+    );
+    updateResidentsTable();
+  }
+}
+
+function makeBooking() {
+  const date = document.getElementById("bookingDate").value;
+  const time = document.getElementById("bookingTime").value;
+  const machine = document.getElementById("machineNumber").value;
+  
+  if (!date || !time || !machine) {
+    document.getElementById("bookingError").textContent = "Por favor, preencha todos os campos!";
+    return;
+  }
+
+  const now = new Date();
+  const bookingDate = new Date(date + "T" + time);
+  const weekFromNow = new Date();
+  weekFromNow.setDate(weekFromNow.getDate() + 7);
+  
+  if (bookingDate < now) {
+    document.getElementById("bookingError").textContent = "Não é possível agendar horários passados!";
+    return;
+  }
+  
+  if (bookingDate > weekFromNow) {
+    document.getElementById("bookingError").textContent = "Não é possível agendar além de uma semana!";
+    return;
+  }
+  
+  const userBookings = bookings.filter(b => 
+    b.building === currentUser.building && 
+    b.apartment === currentUser.apartment
+  );
+
+  if (userBookings.length >= 2) {
+    document.getElementById("bookingError").textContent = "Limite de 2 agendamentos por semana atingido!";
+    return;
+  }
+  
+  const conflictingBooking = bookings.find(b => 
+    b.date === date && 
+    b.time === time && 
+    b.building === currentUser.building &&
+    b.machine === machine
+  );
+  
+  if (conflictingBooking) {
+    document.getElementById("bookingError").textContent = "Horário já está ocupado!";
+    return;
+  }
+  
+  bookings.push({
+    building: currentUser.building,
+    apartment: currentUser.apartment,
+    date,
+    time,
+    machine
+  });
+  
+  document.getElementById("bookingError").textContent = "";
+  updateBookingsTable();
+  updateAvailableSlots();
+}
+
+function updateBookingsTable() {
+  const tbody = document.querySelector("#userBookings tbody");
+  tbody.innerHTML = "";
+  
+  bookings.filter(b => 
+    b.building === currentUser.building && 
+    b.apartment === currentUser.apartment
+  ).forEach(booking => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${booking.date}</td>
+      <td>${booking.time}</td>
+      <td>${booking.machine}</td>
+      <td>
+        <button onclick="cancelBooking('${booking.date}', '${booking.time}', '${booking.machine}')">
+          Cancelar
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function cancelBooking(date, time, machine) {
+  if (confirm("Tem certeza que deseja cancelar este agendamento?")) {
+    bookings = bookings.filter(b => 
+      !(b.date === date && 
+        b.time === time && 
+        b.machine === machine && 
+        b.building === currentUser.building && 
+        b.apartment === currentUser.apartment)
+    );
+    updateBookingsTable();
+    updateAvailableSlots();
+  }
+}
+
+function clearRegistrationForm() {
+  document.getElementById("newName").value = "";
+  document.getElementById("newBuilding").value = "";
+  document.getElementById("newApartment").value = "";
+  document.getElementById("newPhone").value = "";
+  document.getElementById("newPassword").value = "";
+}
+
+function logout() {
+  currentUser = null;
+  document.getElementById("loginPage").classList.remove("hidden");
+  document.getElementById("adminPanel").classList.add("hidden");
+  document.getElementById("bookingPage").classList.add("hidden");
+  document.getElementById("buildingNumber").value = "";
+  document.getElementById("apartmentNumber").value = "";
+  document.getElementById("password").value = "";
+}
+
+// Set min date to today and max date to a week from now
+const bookingDateInput = document.getElementById("bookingDate");
+const today = new Date().toISOString().split("T")[0];
+const maxDate = new Date();
+maxDate.setDate(maxDate.getDate() + 7);
+bookingDateInput.min = today;
+bookingDateInput.max = maxDate.toISOString().split("T")[0];
+</script></body></html>
